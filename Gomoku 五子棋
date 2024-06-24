@@ -1,0 +1,81 @@
+import tkinter as tk
+from tkinter import messagebox
+
+class Gomoku:
+    def __init__(self):
+        self.window = tk.Tk()
+        self.window.title("五子棋")
+        self.canvas = tk.Canvas(self.window, width=600, height=600, bg="saddlebrown")
+        self.canvas.pack()
+        
+        self.board_size = 15
+        self.cell_size = 40
+        self.piece_size = self.cell_size // 2 - 2
+        
+        self.board = [[0] * self.board_size for _ in range(self.board_size)]
+        self.current_player = 1  # 1 for black, -1 for white
+        
+        self.canvas.bind("<Button-1>", self.click)
+        self.draw_board()
+        
+    def draw_board(self):
+        for i in range(self.board_size):
+            self.canvas.create_line(self.cell_size // 2, self.cell_size // 2 + i * self.cell_size, 
+                                    self.board_size * self.cell_size - self.cell_size // 2, self.cell_size // 2 + i * self.cell_size)
+            self.canvas.create_line(self.cell_size // 2 + i * self.cell_size, self.cell_size // 2, 
+                                    self.cell_size // 2 + i * self.cell_size, self.board_size * self.cell_size - self.cell_size // 2)
+    
+    def click(self, event):
+        x, y = event.x, event.y
+        col = round((x - self.cell_size // 2) / self.cell_size)
+        row = round((y - self.cell_size // 2) / self.cell_size)
+        
+        if 0 <= row < self.board_size and 0 <= col < self.board_size and self.board[row][col] == 0:
+            self.board[row][col] = self.current_player
+            self.draw_piece(row, col)
+            if self.check_win(row, col):
+                winner = "Black" if self.current_player == 1 else "White"
+                messagebox.showinfo("Game Over", f"{winner} win!")
+                self.show_continue_end()
+            else:
+                self.current_player = -self.current_player
+    
+    def draw_piece(self, row, col):
+        x0 = self.cell_size // 2 + col * self.cell_size - self.piece_size
+        y0 = self.cell_size // 2 + row * self.cell_size - self.piece_size
+        x1 = self.cell_size // 2 + col * self.cell_size + self.piece_size
+        y1 = self.cell_size // 2 + row * self.cell_size + self.piece_size
+        color = "black" if self.current_player == 1 else "white"
+        self.canvas.create_oval(x0, y0, x1, y1, fill=color)
+    
+    def check_win(self, row, col):
+        def count(direction_x, direction_y):
+            count = 0
+            x, y = row, col
+            while 0 <= x < self.board_size and 0 <= y < self.board_size and self.board[x][y] == self.current_player:
+                count += 1
+                x += direction_x
+                y += direction_y
+            return count
+        
+        directions = [(1, 0), (0, 1), (1, 1), (1, -1)]
+        for direction_x, direction_y in directions:
+            if count(direction_x, direction_y) + count(-direction_x, -direction_y) - 1 >= 5:
+                return True
+        return False
+    
+    def show_continue_end(self):
+        if messagebox.askyesno("Game Over", "Continue?"):
+            self.reset_game()
+        else:
+            self.window.destroy()
+    
+    def reset_game(self):
+        self.board = [[0] * self.board_size for _ in range(self.board_size)]
+        self.current_player = 1
+        self.canvas.delete("all")
+        self.draw_board()
+
+if __name__ == "__main__":
+    game = Gomoku()
+    game.window.mainloop()
