@@ -1,0 +1,191 @@
+import pygame
+import random
+import tkinter as tk
+from tkinter import messagebox
+
+# 初始化Pygame
+pygame.init()
+
+# 設置遊戲窗口
+screen_width = 800
+screen_height = 600
+screen = pygame.display.set_mode((screen_width, screen_height))
+pygame.display.set_caption("Raiden Game")
+
+# 定義顏色
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+GREEN = (0, 255, 0)
+
+# 設置玩家屬性
+player_x = screen_width // 2
+player_y = screen_height - 100
+player_speed = 5
+player_size = 20
+
+# 設置敵人屬性
+enemy_speed = 2
+enemy_size = 20
+enemy_list = []
+
+# 設置子彈屬性
+bullet_speed = 7
+bullet_radius = 5
+bullet_list = []
+
+# 設置分數
+score = 0
+font = pygame.font.Font(None, 36)
+
+# 設置Boss屬性
+boss_size = 50
+boss_speed = 1
+boss_health = 100
+boss_active = False
+boss_x = screen_width // 2 - boss_size
+boss_y = -boss_size
+
+# 畫玩家的三角形
+def draw_player(x, y):
+    points = [(x, y - player_size), (x - player_size, y + player_size), (x + player_size, y + player_size)]
+    pygame.draw.polygon(screen, BLUE, points)
+
+# 畫敵人的倒三角形
+def draw_enemy(x, y):
+    points = [(x, y + enemy_size), (x - enemy_size, y - enemy_size), (x + enemy_size, y - enemy_size)]
+    pygame.draw.polygon(screen, RED, points)
+
+# 畫子彈的小圓形
+def draw_bullet(x, y):
+    pygame.draw.circle(screen, WHITE, (x, y), bullet_radius)
+
+# 畫Boss
+def draw_boss(x, y):
+    points = [(x, y + boss_size), (x - boss_size, y - boss_size), (x + boss_size, y - boss_size)]
+    pygame.draw.polygon(screen, GREEN, points)
+
+# 檢查子彈和敵人的碰撞
+def check_collision(bullet, enemy):
+    bullet_rect = pygame.Rect(bullet[0] - bullet_radius, bullet[1] - bullet_radius, bullet_radius * 2, bullet_radius * 2)
+    enemy_rect = pygame.Rect(enemy[0] - enemy_size, enemy[1] - enemy_size, enemy_size * 2, enemy_size * 2)
+    return bullet_rect.colliderect(enemy_rect)
+
+# 檢查子彈和Boss的碰撞
+def check_boss_collision(bullet, boss_x, boss_y):
+    bullet_rect = pygame.Rect(bullet[0] - bullet_radius, bullet[1] - bullet_radius, bullet_radius * 2, bullet_radius * 2)
+    boss_rect = pygame.Rect(boss_x - boss_size, boss_y - boss_size, boss_size * 2, boss_size * 2)
+    return bullet_rect.colliderect(boss_rect)
+
+# 顯示勝利消息框
+def show_victory_message():
+    root = tk.Tk()
+    root.withdraw()  # 隱藏主窗口
+
+    result = messagebox.askquestion("Victory", "WIN\nDo you want to continue?", icon='info')
+    root.destroy()  # 銷毀主窗口
+    return result
+
+# 重置遊戲
+def reset_game():
+    global player_x, player_y, enemy_list, bullet_list, score, boss_active, boss_health, boss_x, boss_y
+    player_x = screen_width // 2
+    player_y = screen_height - 100
+    enemy_list = []
+    bullet_list = []
+    score = 0
+    boss_active = False
+    boss_health = 100
+    boss_x = screen_width // 2 - boss_size
+    boss_y = -boss_size
+
+# 遊戲主循環
+running = True
+while running:
+    # 處理事件
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    # 獲取按鍵輸入
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_LEFT] and player_x > player_size:
+        player_x -= player_speed
+    if keys[pygame.K_RIGHT] and player_x < screen_width - player_size:
+        player_x += player_speed
+    if keys[pygame.K_UP] and player_y > player_size:
+        player_y -= player_speed
+    if keys[pygame.K_DOWN] and player_y < screen_height - player_size:
+        player_y += player_speed
+    if keys[pygame.K_SPACE]:
+        bullet_list.append([player_x, player_y - player_size])
+
+    # 更新子彈位置
+    for bullet in bullet_list[:]:
+        bullet[1] -= bullet_speed
+        if bullet[1] < 0:
+            bullet_list.remove(bullet)
+
+    # 更新敵人位置
+    if random.randint(0, 50) == 0 and not boss_active:
+        enemy_list.append([random.randint(0, screen_width - enemy_size), -enemy_size])
+    for enemy in enemy_list[:]:
+        enemy[1] += enemy_speed
+        if enemy[1] > screen_height:
+            enemy_list.remove(enemy)
+
+    # 檢查碰撞
+    for bullet in bullet_list[:]:
+        for enemy in enemy_list[:]:
+            if check_collision(bullet, enemy):
+                bullet_list.remove(bullet)
+                enemy_list.remove(enemy)
+                score += 1
+                break
+
+    # 顯示Boss
+    if score >= 60 and not boss_active:
+        boss_active = True
+        boss_x = screen_width // 2 - boss_size
+        boss_y = -boss_size
+
+    # 更新Boss位置
+    if boss_active:
+        boss_y += boss_speed
+        for bullet in bullet_list[:]:
+            if check_boss_collision(bullet, boss_x, boss_y):
+                bullet_list.remove(bullet)
+                boss_health -= 1
+                if boss_health == 0:
+                    boss_active = False
+                    score += 40  # 擊敗Boss加40分
+                    result = show_victory_message()
+                    if result == 'yes':
+                        reset_game()
+                    else:
+                        running = False
+                    break
+
+    # 繪製遊戲畫面
+    screen.fill(BLACK)
+    draw_player(player_x, player_y)
+    for bullet in bullet_list:
+        draw_bullet(bullet[0], bullet[1])
+    for enemy in enemy_list:
+        draw_enemy(enemy[0], enemy[1])
+    if boss_active:
+        draw_boss(boss_x, boss_y)
+
+    # 顯示分數
+    score_text = font.render(f"Score: {score}", True, WHITE)
+    screen.blit(score_text, (10, 10))
+
+    # 更新屏幕
+    pygame.display.flip()
+
+    # 控制遊戲幀率
+    pygame.time.Clock().tick(60)
+
+# 退出遊戲
+pygame.quit()
